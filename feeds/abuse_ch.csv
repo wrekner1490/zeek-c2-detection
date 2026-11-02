@@ -1,0 +1,4 @@
+# Abuse.ch URLhaus Database
+id,dateadded,url,url_status,threat,tags,urlhaus_link,reporter
+1,2023-01-01,http://198.51.100.1:80/evil.exe,online,malware_download,exe,https://...,reporter
+2,2023-01-01,http://evil-c2.com/c2,online,c2,c2,https://...,reporter

@@ -1,0 +1,19 @@
+#separator \x09
+#set_separator	,
+#empty_field	(empty)
+#unset_field	-
+#fields	ts	uid	id.orig_h	id.orig_p	id.resp_h	id.resp_p	proto	trans_id	rtt	query	qclass	qclass_name	qtype	qtype_name	rcode	rcode_name	AA	TC	RD	RA	Z	answers	TTLs	rejected
+#types	time	string	addr	port	addr	port	enum	count	interval	string	count	string	count	string	count	string	bool	bool	bool	bool	count	vector[string]	vector[interval]	bool
+1700000000.0	D_norm1	192.168.1.10	50001	8.8.8.8	53	udp	1	0.01	google.com	1	C_INTERNET	1	A	0	NOERROR	F	F	T	T	0	142.250.190.46	300	F
+1700000000.0	D_beacon_0	192.168.1.11	52000	8.8.8.8	53	udp	2	0.02	evil-c2.com	1	C_INTERNET	1	A	0	NOERROR	F	F	T	T	0	198.51.100.99	300	F
+1700000060.1	D_beacon_1	192.168.1.11	52001	8.8.8.8	53	udp	3	0.02	evil-c2.com	1	C_INTERNET	1	A	0	NOERROR	F	F	T	T	0	198.51.100.99	300	F
+1700000120.0	D_beacon_2	192.168.1.11	52002	8.8.8.8	53	udp	4	0.02	evil-c2.com	1	C_INTERNET	1	A	0	NOERROR	F	F	T	T	0	198.51.100.99	300	F
+1700000180.1	D_beacon_3	192.168.1.11	52003	8.8.8.8	53	udp	5	0.02	evil-c2.com	1	C_INTERNET	1	A	0	NOERROR	F	F	T	T	0	198.51.100.99	300	F
+1700000240.0	D_beacon_4	192.168.1.11	52004	8.8.8.8	53	udp	6	0.02	evil-c2.com	1	C_INTERNET	1	A	0	NOERROR	F	F	T	T	0	198.51.100.99	300	F
+1700000300.1	D_beacon_5	192.168.1.11	52005	8.8.8.8	53	udp	7	0.02	evil-c2.com	1	C_INTERNET	1	A	0	NOERROR	F	F	T	T	0	198.51.100.99	300	F
+1700000360.0	D_beacon_6	192.168.1.11	52006	8.8.8.8	53	udp	8	0.02	evil-c2.com	1	C_INTERNET	1	A	0	NOERROR	F	F	T	T	0	198.51.100.99	300	F
+1700000420.1	D_beacon_7	192.168.1.11	52007	8.8.8.8	53	udp	9	0.02	evil-c2.com	1	C_INTERNET	1	A	0	NOERROR	F	F	T	T	0	198.51.100.99	300	F
+1700000480.0	D_beacon_8	192.168.1.11	52008	8.8.8.8	53	udp	10	0.02	evil-c2.com	1	C_INTERNET	1	A	0	NOERROR	F	F	T	T	0	198.51.100.99	300	F
+1700000540.1	D_beacon_9	192.168.1.11	52009	8.8.8.8	53	udp	11	0.02	evil-c2.com	1	C_INTERNET	1	A	0	NOERROR	F	F	T	T	0	198.51.100.99	300	F
+1700001000.0	D_tunnel1	192.168.1.12	53000	8.8.8.8	53	udp	100	0.05	zxcvbnm1234567890qwertyuiopasdfghjklzxcvbnm.tunnel.com	1	C_INTERNET	16	TXT	0	NOERROR	F	F	T	T	0	-	-	F
+1700002000.0	D_ff1	192.168.1.13	54000	8.8.8.8	53	udp	200	0.03	fastflux.com	1	C_INTERNET	1	A	0	NOERROR	F	F	T	T	0	1.1.1.1,2.2.2.2,3.3.3.3	60,60,60	F

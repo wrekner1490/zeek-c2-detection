@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zeek C2 Hunter</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        /* CSS reset and base styles */
+        :root {
+            --bg-main: #FFFFFF;
+            --bg-sidebar: #F5F6FA;
+            --border: #E2E8F0;
+            --text-main: #1A202C;
+            --text-muted: #718096;
+            --primary: #3182CE;
+            
+            --score-red: #E53E3E;
+            --score-orange: #DD6B20;
+            --score-yellow: #D69E2E;
+            --score-green: #38A169;
+            
+            --mod-dns: #3182CE;
+            --mod-strobe: #E53E3E;
+            --mod-long: #DD6B20;
+            --mod-intel: #805AD5;
+            --mod-ja3: #A0AEC0;
+
+            --input-bg: #FFFFFF;
+            --card-bg: #FFFFFF;
+        }
+
+        [data-theme="dark"] {
+            --bg-main: #0D1117;
+            --bg-sidebar: #161B22;
+            --border: #30363D;
+            --text-main: #E6EDF3;
+            --text-muted: #8B949E;
+            --card-bg: #161B22;
+            --input-bg: #0D1117;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
+            color: var(--text-main); 
+            display: flex; 
+            height: 100vh; 
+            overflow: hidden; 
+            background: var(--bg-main); 
+            transition: background-color 0.3s, color 0.3s;
+        }
+        
+        /* Sidebar */
+        .sidebar { 
+            width: 230px; 
+            background: var(--bg-sidebar); 
+            border-right: 1px solid var(--border); 
+            display: flex; 
+            flex-direction: column; 
+            flex-shrink: 0; 
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+        .sidebar-header { 
+            padding: 24px 20px; 
+            display: flex; 
+            align-items: center; 
+            gap: 12px; 
+            font-weight: 700; 
+            font-size: 1.1rem; 
+            border-bottom: 1px solid var(--border); 
+            position: relative;
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--text-muted);
+            margin-left: auto;
+            transition: background-color 0.3s;
+        }
+        .status-dot.connected {
+            background-color: #39D353;
+            box-shadow: 0 0 8px #39D353;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(57, 211, 83, 0.4); }
+            70% { box-shadow: 0 0 0 6px rgba(57, 211, 83, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(57, 211, 83, 0); }
+        }
+
+        .sidebar-nav { flex: 1; padding: 20px 0; display: flex; flex-direction: column; }
+        .nav-item { 
+            padding: 12px 20px; 
+            cursor: pointer; 
+            color: var(--text-muted); 
+            font-weight: 500; 
+            border-left: 3px solid transparent; 
+            transition: all 0.15s; 
+            display: flex;
+            align-items: center;
+        }
+        .nav-item:hover { background: rgba(128,128,128,0.1); color: var(--text-main); }
+        .nav-item.active { 
+            border-left: 3px solid var(--primary); 
+            color: var(--primary); 
+            background: rgba(49, 130, 206, 0.05); 
+        }
+        .sidebar-footer { padding: 20px; font-size: 0.8rem; color: var(--text-muted); border-top: 1px solid var(--border); }
+
+        /* Main Content */
+        .main-content { flex: 1; overflow-y: auto; padding: 40px; }
+        .page { display: none; opacity: 0; transition: opacity 0.15s ease-in-out; }
+        .page.active { display: block; opacity: 1; }
+        
+        h1 { margin-bottom: 8px; font-size: 1.8rem; font-weight: 600; }
+        .page-meta { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 32px; }
+        h2 { margin-bottom: 20px; font-size: 1.25rem; font-weight: 600; }
+        
+        /* Cards & Inputs */
+        .card { 
+            background: var(--card-bg); 
+            border: 1px solid var(--border); 
+            border-radius: 8px; 
+            padding: 24px; 
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03); 
+            margin-bottom: 24px;
+        }
+        .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; margin-bottom: 32px; }
+        .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 24px; margin-bottom: 32px; }
+        
+        /* Forms */
+        .form-row { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+        .form-row label { width: 140px; font-weight: 600; font-size: 0.9rem; color: var(--text-muted); flex-shrink: 0; }
+        .text-input { 
+            flex: 1; 
+            padding: 10px 14px; 
+            border: 1px solid var(--border); 
+            border-radius: 6px; 
+            background: var(--input-bg);
+            color: var(--text-main);
+            font-size: 0.95rem;
+        }
+        .text-input:focus { outline: none; border-color: var(--primary); }
+        .btn { 
+            padding: 10px 16px; 
+            border: 1px solid var(--border); 
+            border-radius: 6px; 
+            background: var(--bg-sidebar); 
+            color: var(--text-main); 
+            font-weight: 500; 
+            cursor: pointer; 
+            transition: all 0.2s; 
+        }
+        .btn:hover { background: var(--border); }
+        .btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
+        .btn-primary:hover { background: #2b6cb0; border-color: #2b6cb0; }
+        .btn-danger { background: var(--score-red); color: white; border-color: var(--score-red); }
+        
+        .inline-options { display: flex; align-items: center; gap: 24px; background: var(--bg-sidebar); padding: 16px 24px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 24px; }
+        
+        /* Terminal */
+        .terminal-container { position: relative; margin-top: 24px; display: none; }
+        .terminal {
+            background: #0D1117;
+            color: #39D353;
+            font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+            font-size: 0.9rem;
+            padding: 20px;
+            border-radius: 8px;
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #30363D;
+            line-height: 1.5;
+        }
+        .term-line { opacity: 0; animation: fadeIn 0.2s forwards; word-wrap: break-word; }
+        @keyframes fadeIn { to { opacity: 1; } }
+        .blinking-cursor { display: inline-block; width: 8px; height: 16px; background: #39D353; animation: blink 1s step-end infinite; vertical-align: middle; margin-left: 4px; }
+        @keyframes blink { 50% { opacity: 0; } }
+        .term-controls { position: absolute; top: 12px; right: 20px; display: flex; gap: 8px; }
+        
+        /* Alert Banner */
+        .banner { padding: 16px; border-radius: 8px; font-weight: 600; display: none; margin-top: 16px; }
+        .banner.success { background: rgba(56, 161, 105, 0.1); color: var(--score-green); border: 1px solid rgba(56, 161, 105, 0.2); }
+        
+        /* Tables */
+        .table-container { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 32px; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th, td { padding: 14px 24px; border-bottom: 1px solid var(--border); }
+        th { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; background: var(--bg-sidebar); cursor: pointer; user-select: none; }
+        th:hover { background: var(--border); }
+        td { font-size: 0.95rem; font-weight: 500; }
+        tr:last-child td { border-bottom: none; }
+        
+        .badge { display: inline-block; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; color: white; margin-right: 6px; margin-bottom: 6px; }
+        .badge.dns { background: var(--mod-dns); }
+        .badge.strobe { background: var(--mod-strobe); }
+        .badge.long { background: var(--mod-long); }
+        .badge.intel { background: var(--mod-intel); }
+        .badge.ja3 { background: var(--mod-ja3); }
+        
+        /* Empty State */
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+        .empty-state svg { width: 64px; height: 64px; margin-bottom: 16px; opacity: 0.5; }
+        
+        .progress-wrapper { display: flex; align-items: center; gap: 12px; }
+        .progress-score { font-weight: 700; width: 36px; }
+        .progress-bar { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 3px; }
+
+        /* Utility */
+        .stat-card .label { font-size: 0.85rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+        .stat-card .value { font-size: 2.2rem; font-weight: 700; color: var(--primary); margin-top: 8px; }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary)"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            Zeek C2 Hunter
+            <div id="status-indicator" class="status-dot" title="Server Status"></div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-item active" data-target="page-run">Run Pipeline</div>
+            <div class="nav-item" data-target="page-dashboard">Dashboard</div>
+            <div class="nav-item" data-target="page-scenarios">Scenarios</div>
+            <div class="nav-item" data-target="page-modules">Modules</div>
+            <div class="nav-item" data-target="page-validation">Validation</div>
+            <div class="nav-item" data-target="page-settings">Settings</div>
+        </nav>
+        <div class="sidebar-footer">
+            v2.0 — Live Mode
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        
+        <!-- PAGE 1: Run Pipeline -->
+        <div id="page-run" class="page active">
+            <h1>Run Pipeline</h1>
+            <div class="page-meta">Execute the detection engine on local Zeek log files.</div>
+            
+            <div class="card">
+                <h2>Log Inputs</h2>
+                <div class="form-row" style="margin-bottom: 4px;">
+                    <label>conn.log *</label>
+                    <input type="text" id="inp-conn" class="text-input" placeholder="e.g. C:\project\data\sample_logs\conn.log">
+                    <button class="btn" onclick="document.getElementById('inp-conn').value=''">×</button>
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-left: 152px; margin-bottom: 16px;">Type the full path, e.g. C:\project\data\sample_logs\conn.log</div>
+                
+                <div class="form-row" style="margin-bottom: 4px;">
+                    <label>dns.log *</label>
+                    <input type="text" id="inp-dns" class="text-input" placeholder="e.g. C:\project\data\sample_logs\dns.log">
+                    <button class="btn" onclick="document.getElementById('inp-dns').value=''">×</button>
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-left: 152px; margin-bottom: 16px;">Type the full path, e.g. C:\project\data\sample_logs\dns.log</div>
+                
+                <div class="form-row" style="margin-bottom: 4px;">
+                    <label>ssl.log</label>
+                    <input type="text" id="inp-ssl" class="text-input" placeholder="Optional">
+                    <button class="btn" onclick="document.getElementById('inp-ssl').value=''">×</button>
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-left: 152px; margin-bottom: 16px;">Type the full path, e.g. C:\project\data\sample_logs\ssl.log</div>
+                
+                <div class="form-row" style="margin-bottom: 4px;">
+                    <label>Threat Intel CSV</label>
+                    <input type="text" id="inp-intel" class="text-input" placeholder="Optional">
+                    <button class="btn" onclick="document.getElementById('inp-intel').value=''">×</button>
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-left: 152px;">Type the full path, e.g. C:\project\data\intel.csv</div>
+            </div>
+
+            <div class="inline-options">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <label style="font-weight: 600; color: var(--text-muted);">Min Score Threshold: <span id="lbl-min-score">20</span></label>
+                    <input type="range" id="inp-min-score" min="0" max="100" value="20" style="width: 150px;" oninput="document.getElementById('lbl-min-score').innerText = this.value">
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 12px; margin-left: 20px;">
+                    <label style="font-weight: 600; color: var(--text-muted);">Format:</label>
+                    <select id="inp-format" class="text-input" style="width: 100px;">
+                        <option value="json">JSON</option>
+                        <option value="csv">CSV</option>
+                    </select>
+                </div>
+                
+                <button id="btn-run" class="btn btn-primary" style="margin-left: auto; width: 200px; font-weight: bold; font-size: 1.05rem;" onclick="runPipeline()">RUN PIPELINE</button>
+            </div>
+
+            <div id="terminal-wrapper" class="terminal-container">
+                <div class="term-controls">
+                    <button id="btn-stop" class="btn btn-danger" style="display: none;" onclick="stopPipeline()">STOP</button>
+                    <button class="btn" style="background: rgba(255,255,255,0.1); color: white; border: none;" onclick="document.getElementById('terminal-output').innerHTML=''">CLEAR</button>
+                </div>
+                <div id="terminal-output" class="terminal"></div>
+                <div style="position: absolute; bottom: 20px; left: 20px;"><span class="blinking-cursor" id="term-cursor"></span></div>
+            </div>
+            
+            <div id="success-banner" class="banner success">✓ Pipeline complete — view results in the Dashboard tab.</div>
+        </div>
+
+        <!-- PAGE 2: Dashboard -->
+        <div id="page-dashboard" class="page">
+            <h1>Detection Dashboard</h1>
+            <div id="dashboard-meta" class="page-meta">Last run: Unknown</div>
+            
+            <div id="dashboard-empty" class="empty-state">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                <h2>No results yet</h2>
+                <p style="margin-top: 10px;">Run the pipeline first to generate data.</p>
+            </div>
+
+            <div id="dashboard-content" style="display: none;">
+                <div class="grid-4">
+                    <div class="card stat-card"><div class="label">Total Hosts</div><div id="stat-total" class="value">0</div></div>
+                    <div class="card stat-card"><div class="label">Alerts Fired</div><div id="stat-alerts" class="value">0</div></div>
+                    <div class="card stat-card"><div class="label">Highest Score</div><div id="stat-high" class="value score-red">0</div></div>
+                    <div class="card stat-card"><div class="label">Active Modules</div><div id="stat-mods" class="value">0</div></div>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h2>Top Flagged Hosts</h2>
+                    <input type="text" id="table-search" class="text-input" style="width: 250px;" placeholder="Search IP..." onkeyup="filterTable()">
+                </div>
+                
+                <div class="table-container">
+                    <table id="results-table">
+                        <thead>
+                            <tr>
+                                <th onclick="sortTable(0)">IP Address ↕</th>
+                                <th onclick="sortTable(1)">Risk Score ↕</th>
+                                <th>Modules Fired</th>
+                                <th>Top Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody id="results-tbody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- PAGE 3: Scenarios -->
+        <div id="page-scenarios" class="page">
+            <h1>Scenarios Analysis</h1>
+            <div class="page-meta">Compare runs side by side. Data loaded from recent executions.</div>
+            
+            <div class="empty-state">
+                <p>Scenario comparison requires cached historical runs. Run the pipeline to populate.</p>
+            </div>
+        </div>
+
+        <!-- PAGE 4: Modules -->
+        <div id="page-modules" class="page">
+            <h1>Detection Modules</h1>
+            <div class="page-meta">Static configuration overview.</div>
+            <!-- Standard module cards from original design -->
+            <div class="grid-2">
+                <div class="card"><h3 style="color:var(--mod-dns);">DNS Analyzer (20%)</h3><p>Detects beaconing, tunneling, DGA.</p></div>
+                <div class="card"><h3 style="color:var(--mod-long);">Long Connection (15%)</h3><p>Detects idle C2, low-and-slow.</p></div>
+                <div class="card"><h3 style="color:var(--mod-strobe);">Strobe Detector (10%)</h3><p>Connection floods via time windowing.</p></div>
+                <div class="card"><h3 style="color:var(--mod-intel);">Threat Intel (15%)</h3><p>IP/domain blocklist matching.</p></div>
+            </div>
+        </div>
+
+        <!-- PAGE 5: Validation -->
+        <div id="page-validation" class="page">
+            <h1>Validation Results</h1>
+            <div class="page-meta">CTU-13 baseline validation metrics.</div>
+            <div class="card">
+                <p>Validation data is static and pre-calculated for Neris IRC Botnet (IP 147.32.84.165).</p>
+            </div>
+        </div>
+
+        <!-- PAGE 6: Settings -->
+        <div id="page-settings" class="page">
+            <h1>Settings</h1>
+            <div class="page-meta">Configure dashboard behavior and backend bridge.</div>
+            
+            <div class="card" style="max-width: 600px;">
+                <div class="form-row">
+                    <label>Server URL</label>
+                    <input type="text" id="set-url" class="text-input" value="http://localhost:5000">
+                </div>
+                <div class="form-row">
+                    <label>Theme</label>
+                    <select id="set-theme" class="text-input" onchange="setTheme(this.value)">
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                    </select>
+                </div>
+                <div style="margin-top: 24px; display: flex; gap: 12px; align-items: center;">
+                    <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+                    <button class="btn" onclick="testConnection()">Test Connection</button>
+                    <span id="test-conn-res" style="font-weight: 600; font-size: 0.9rem;"></span>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // Settings State
+        let settings = {
+            serverUrl: localStorage.getItem('serverUrl') || 'http://localhost:5000',
+            theme: localStorage.getItem('theme') || 'light'
+        };
+
+        // Initialization
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('set-url').value = settings.serverUrl;
+            document.getElementById('set-theme').value = settings.theme;
+            setTheme(settings.theme);
+            
+            // Start heartbeat
+            checkStatus();
+            setInterval(checkStatus, 3000);
+            
+            // Try load initial results
+            fetchResults();
+        });
+
+        // Navigation Logic
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+                item.classList.add('active');
+
+                const targetId = item.getAttribute('data-target');
+                document.querySelectorAll('.page').forEach(page => {
+                    page.style.display = 'none';
+                    page.classList.remove('active');
+                });
+
+                const targetPage = document.getElementById(targetId);
+                targetPage.style.display = 'block';
+                requestAnimationFrame(() => requestAnimationFrame(() => targetPage.classList.add('active')));
+                
+                if (targetId === 'page-dashboard') {
+                    fetchResults();
+                }
+            });
+        });
+
+        // Settings Logic
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+        }
+
+        function saveSettings() {
+            settings.serverUrl = document.getElementById('set-url').value;
+            settings.theme = document.getElementById('set-theme').value;
+            localStorage.setItem('serverUrl', settings.serverUrl);
+            localStorage.setItem('theme', settings.theme);
+            
+            const res = document.getElementById('test-conn-res');
+            res.innerText = "Settings saved.";
+            res.style.color = "var(--text-muted)";
+            setTimeout(() => res.innerText = "", 2000);
+        }
+
+        async function testConnection() {
+            const res = document.getElementById('test-conn-res');
+            res.innerText = "Testing...";
+            res.style.color = "var(--text-muted)";
+            try {
+                const r = await fetch(settings.serverUrl + '/status');
+                if (r.ok) {
+                    res.innerText = "✓ Connected";
+                    res.style.color = "#39D353";
+                } else {
+                    throw new Error('Bad status');
+                }
+            } catch (e) {
+                res.innerText = "✗ Cannot reach server";
+                res.style.color = "var(--score-red)";
+            }
+        }
+
+        // Status Heartbeat
+        async function checkStatus() {
+            const dot = document.getElementById('status-indicator');
+            try {
+                const r = await fetch(settings.serverUrl + '/status');
+                if (r.ok) {
+                    const data = await r.json();
+                    dot.classList.add('connected');
+                    if (data.running) {
+                        document.getElementById('btn-run').disabled = true;
+                        document.getElementById('btn-stop').style.display = 'inline-block';
+                    } else {
+                        document.getElementById('btn-run').disabled = false;
+                        document.getElementById('btn-stop').style.display = 'none';
+                    }
+                } else {
+                    dot.classList.remove('connected');
+                }
+            } catch (e) {
+                dot.classList.remove('connected');
+            }
+        }
+
+        // Pipeline Logic
+        async function runPipeline() {
+            const conn = document.getElementById('inp-conn').value;
+            const dns = document.getElementById('inp-dns').value;
+            if (!conn || !dns) {
+                alert("conn.log and dns.log are required!");
+                return;
+            }
+
+            document.getElementById('terminal-wrapper').style.display = 'block';
+            document.getElementById('success-banner').style.display = 'none';
+            document.getElementById('terminal-output').innerHTML = '';
+            document.getElementById('btn-run').disabled = true;
+            document.getElementById('btn-stop').style.display = 'inline-block';
+            appendTerminal("[*] Initializing pipeline...", "info");
+
+            const payload = {
+                conn: conn,
+                dns: dns,
+                ssl: document.getElementById('inp-ssl').value,
+                threat_intel: document.getElementById('inp-intel').value,
+                min_score: parseInt(document.getElementById('inp-min-score').value),
+                output_format: document.getElementById('inp-format').value
+            };
+
+            try {
+                const response = await fetch(settings.serverUrl + '/run', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    appendTerminal(`ERROR: ${err.error}`);
+                    resetRunControls();
+                    return;
+                }
+
+                if (!window.ReadableStream) {
+                    appendTerminal("[*] ReadableStream not supported in this browser. Falling back to polling mode...");
+                    const pollInterval = setInterval(async () => {
+                        try {
+                            const statRes = await fetch(settings.serverUrl + '/status');
+                            if (statRes.ok) {
+                                const statData = await statRes.json();
+                                if (!statData.running) {
+                                    clearInterval(pollInterval);
+                                    pipelineComplete();
+                                }
+                            }
+                        } catch (e) {}
+                    }, 2000);
+                    return;
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder("utf-8");
+                
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value, {stream: true});
+                    const lines = chunk.split('\n');
+                    for (let line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6);
+                            if (data === '[DONE]') {
+                                pipelineComplete();
+                            } else {
+                                appendTerminal(data);
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                appendTerminal(`ERROR: Connection to server failed - ${e.message}`);
+                resetRunControls();
+            }
+        }
+
+        async function stopPipeline() {
+            try {
+                await fetch(settings.serverUrl + '/stop', { method: 'POST' });
+                appendTerminal("[!] Sent kill signal to pipeline...");
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function pipelineComplete() {
+            appendTerminal("[+] Pipeline execution completed successfully.");
+            resetRunControls();
+            document.getElementById('success-banner').style.display = 'block';
+            fetchResults(); // auto fetch
+        }
+
+        function resetRunControls() {
+            document.getElementById('btn-run').disabled = false;
+            document.getElementById('btn-stop').style.display = 'none';
+        }
+
+        function appendTerminal(text) {
+            const div = document.createElement('div');
+            div.className = 'term-line';
+            
+            // Colors
+            if (text.startsWith('[!]')) div.style.color = 'orange';
+            else if (text.startsWith('[+]')) div.style.color = '#39D353';
+            else if (text.startsWith('[*]')) div.style.color = '#58A6FF';
+            else if (text.includes('ERROR')) div.style.color = '#FF7B72';
+            
+            // IP Regex highlight
+            const ipRegex = /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g;
+            let formattedHtml = text.replace(ipRegex, match => `<strong style="color:#FFF; background:rgba(255,255,255,0.1); padding:0 2px; border-radius:2px;">${match}</strong>`);
+            
+            div.innerHTML = formattedHtml;
+            const term = document.getElementById('terminal-output');
+            term.appendChild(div);
+            term.scrollTop = term.scrollHeight;
+        }
+
+        // Results Logic
+        async function fetchResults() {
+            try {
+                const [resStatus, resResults] = await Promise.all([
+                    fetch(settings.serverUrl + '/status').catch(() => null),
+                    fetch(settings.serverUrl + '/results')
+                ]);
+                
+                let lastRunStr = "Unknown";
+                if (resStatus && resStatus.ok) {
+                    const statusData = await resStatus.json();
+                    if (statusData.last_run) {
+                        const runTime = new Date(parseFloat(statusData.last_run) * 1000);
+                        const diffMins = Math.floor((new Date() - runTime) / 60000);
+                        if (diffMins < 1) lastRunStr = "Just now";
+                        else if (diffMins < 60) lastRunStr = `${diffMins} minutes ago`;
+                        else lastRunStr = runTime.toLocaleString();
+                    }
+                }
+
+                if (resResults.ok) {
+                    const data = await resResults.json();
+                    document.getElementById('dashboard-empty').style.display = 'none';
+                    document.getElementById('dashboard-content').style.display = 'block';
+                    document.getElementById('dashboard-meta').innerText = `Last run: ${lastRunStr}`;
+                    populateDashboard(data);
+                }
+            } catch (e) {
+                // Keep empty state
+            }
+        }
+
+        function populateDashboard(data) {
+            let normalizedData = null;
+            if (Array.isArray(data)) {
+                normalizedData = {};
+                data.forEach(item => {
+                    const ip = item.src_ip || item.ip || item.id;
+                    if (ip) normalizedData[ip] = item;
+                });
+            } else if (data && typeof data === 'object' && data.alerts) {
+                normalizedData = {};
+                data.alerts.forEach(item => {
+                    const ip = item.src_ip || item.ip || item.id;
+                    if (ip) normalizedData[ip] = item;
+                });
+            } else if (data && typeof data === 'object') {
+                normalizedData = data;
+            }
+
+            if (!normalizedData || Object.keys(normalizedData).length === 0) {
+                document.getElementById('dashboard-content').style.display = 'none';
+                document.getElementById('dashboard-empty').style.display = 'block';
+                document.getElementById('dashboard-empty').innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    <h2>Results format not recognized</h2>
+                    <p style="margin-top: 10px;">Check output/report.json manually.</p>
+                `;
+                return;
+            }
+            
+            data = normalizedData;
+
+            const hosts = Object.keys(data).length;
+            document.getElementById('stat-total').innerText = hosts;
+            document.getElementById('stat-alerts').innerText = hosts;
+            
+            let maxScore = 0;
+            let uniqueActiveModules = new Set();
+            const tbody = document.getElementById('results-tbody');
+            tbody.innerHTML = '';
+
+            for (const [ip, info] of Object.entries(data)) {
+                const rawScore = info.unified_risk_score || info.unified_score || info.score || 0;
+                if (rawScore > maxScore) maxScore = rawScore;
+                
+                const score = parseFloat(rawScore).toFixed(1);
+                let colorVar = '--score-green';
+                if (score > 60) colorVar = '--score-red';
+                else if (score >= 40) colorVar = '--score-orange';
+                else if (score >= 20) colorVar = '--score-yellow';
+
+                let badges = '';
+                let topReason = 'Behavioral anomaly';
+                const mods = info.modules_fired || info.modules || {};
+                
+                let moduleScoresHtml = '';
+                
+                if (typeof mods === 'object' && !Array.isArray(mods)) {
+                    for (const [modName, modScore] of Object.entries(mods)) {
+                        const s = parseFloat(modScore);
+                        if (s > 0) {
+                            uniqueActiveModules.add(modName);
+                            let c = 'badge-outline';
+                            const lower = modName.toLowerCase();
+                            if (lower === 'dns') c = 'dns';
+                            else if (lower === 'strobe') c = 'strobe';
+                            else if (lower === 'long_conn') c = 'long';
+                            else if (lower === 'threat_intel') c = 'intel';
+                            else if (lower === 'beacon') c = 'dns';
+                            else if (lower === 'ja3') c = 'ja3';
+                            badges += `<span class="badge ${c}">${modName}</span>`;
+                        }
+                        
+                        moduleScoresHtml += `<span style="display:inline-block; margin-right: 12px; font-size:0.8rem; background:#f1f5f9; padding:2px 8px; border-radius:12px; border:1px solid #cbd5e1; color:#475569; text-transform:capitalize;">${modName.replace('_', ' ')}: ${s.toFixed(1)}</span>`;
+                    }
+                }
+
+                if (Array.isArray(info.top_reason)) {
+                    topReason = info.top_reason.slice(0, 2).join(' &middot; ');
+                } else if (typeof info.top_reason === 'string') {
+                    topReason = info.top_reason;
+                } else if (badges === '') {
+                    topReason = 'No specific reason';
+                }
+
+                const tr = document.createElement('tr');
+                tr.style.cursor = 'pointer';
+                tr.onclick = function() {
+                    const next = this.nextElementSibling;
+                    if (next && next.classList.contains('sub-row')) {
+                        next.style.display = next.style.display === 'none' ? 'table-row' : 'none';
+                    }
+                };
+                tr.innerHTML = `
+                    <td style="font-weight:600;">${ip}</td>
+                    <td data-score="${score}">
+                        <div class="progress-wrapper">
+                            <span class="progress-score" style="color: var(${colorVar})">${score}</span>
+                            <div class="progress-bar"><div class="progress-fill" style="width: ${Math.min(score, 100)}%; background-color: var(${colorVar});"></div></div>
+                        </div>
+                    </td>
+                    <td>${badges || '<span class="badge" style="background:#e2e8f0; color:#475569;">None</span>'}</td>
+                    <td style="color:var(--text-muted); font-size: 0.85rem;">${topReason}</td>
+                `;
+                tbody.appendChild(tr);
+                
+                const subTr = document.createElement('tr');
+                subTr.className = 'sub-row';
+                subTr.style.display = 'none';
+                subTr.innerHTML = `
+                    <td colspan="4" style="padding: 12px 24px; background-color: rgba(0,0,0,0.02);">
+                        <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+                            <strong style="font-size:0.8rem; color:var(--text-muted); margin-right:4px;">Module Breakdown:</strong>
+                            ${moduleScoresHtml || '<span style="font-size:0.8rem; color:var(--text-muted);">No module data</span>'}
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(subTr);
+            }
+            
+            const maxEl = document.getElementById('stat-high');
+            maxEl.innerText = maxScore.toFixed(1);
+            if (maxScore > 60) maxEl.style.color = 'var(--score-red)';
+            else if (maxScore >= 40) maxEl.style.color = 'var(--score-orange)';
+            else maxEl.style.color = 'var(--score-yellow)';
+            
+            document.getElementById('stat-mods').innerText = uniqueActiveModules.size;
+        }
+
+        function filterTable() {
+            const input = document.getElementById("table-search").value.toUpperCase();
+            const tr = document.getElementById("results-tbody").getElementsByTagName("tr");
+            for (let i = 0; i < tr.length; i++) {
+                const td = tr[i].getElementsByTagName("td")[0];
+                if (td) {
+                    const txtValue = td.textContent || td.innerText;
+                    tr[i].style.display = txtValue.toUpperCase().indexOf(input) > -1 ? "" : "none";
+                }
+            }
+        }
+
+        let sortAsc = false;
+        function sortTable(colIdx) {
+            const tbody = document.getElementById("results-tbody");
+            const rows = Array.from(tbody.querySelectorAll("tr"));
+            
+            sortAsc = !sortAsc;
+            
+            rows.sort((a, b) => {
+                let valA, valB;
+                if (colIdx === 0) { // IP String
+                    valA = a.cells[colIdx].innerText;
+                    valB = b.cells[colIdx].innerText;
+                    return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                } else if (colIdx === 1) { // Score numeric
+                    valA = parseFloat(a.cells[colIdx].getAttribute('data-score'));
+                    valB = parseFloat(b.cells[colIdx].getAttribute('data-score'));
+                    return sortAsc ? valA - valB : valB - valA;
+                }
+            });
+            
+            tbody.innerHTML = '';
+            rows.forEach(r => tbody.appendChild(r));
+        }
+    </script>
+</body>
+</html>

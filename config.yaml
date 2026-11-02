@@ -1,0 +1,27 @@
+# Phase 7: Operational C2 Configuration
+# Tuned for real 2011 CTU-13 botnet datasets (Neris botnet)
+detection:
+  cv_threshold: 2.5       # Increased to 2.5 to accommodate extreme jitter in Neris scenario 43
+  min_packets: 3          # Lowered from 4/10: Older botnets may beacon less frequently in short windows
+  min_duration: 10.0
+  rarity_threshold: 0.001
+
+enrichment:
+  enabled: true
+  mock_asn_db:
+    "amazon.com": "AS16509 (Amazon.com)"
+    "s3.amazonaws.com": "AS16509 (Amazon.com)"
+    "cloudflare.com": "AS13335 (Cloudflare)"
+    "azure.com": "AS8075 (Microsoft)"
+  mock_geo_db:
+    "10.": "Local LAN"
+    "192.168.": "Local LAN"
+    "172.16.": "Local LAN"
+
+deduplication:
+  enabled: true
+  window_seconds: 3600  # Suppress identical HIGH alerts for 1 hour
+
+baselining:
+  enabled: true
+  baseline_db_path: "baseline.json"

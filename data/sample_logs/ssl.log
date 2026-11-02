@@ -1,0 +1,17 @@
+#separator \x09
+#set_separator	,
+#empty_field	(empty)
+#unset_field	-
+#fields	ts	uid	id.orig_h	id.orig_p	id.resp_h	id.resp_p	version	cipher	curve	server_name	resumed	last_alert	next_protocol	established	cert_chain_fuids	client_cert_chain_fuids	subject	issuer	client_subject	client_issuer	validation_status	ja3	ja3s
+#types	time	string	addr	port	addr	port	string	string	string	string	bool	string	string	bool	vector[string]	vector[string]	string	string	string	string	string	string	string
+1700000000.0	S_norm1	192.168.1.10	50002	1.1.1.1	443	TLSv12	TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256	secp256r1	google.com	F	-	-	T	-	-	-	-	-	-	-	cd08e31494f9531f560d64c695473da9	-
+1700000000.0	S_beacon_0	192.168.1.11	55000	198.51.100.1	443	TLSv12	TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256	secp256r1	malware.com	F	-	-	T	-	-	-	-	-	-	-	3b5074b1b5d032e5620f69f9f700ff0e	-
+1700000060.1	S_beacon_1	192.168.1.11	55001	198.51.100.1	443	TLSv12	TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256	secp256r1	malware.com	F	-	-	T	-	-	-	-	-	-	-	3b5074b1b5d032e5620f69f9f700ff0e	-
+1700000120.0	S_beacon_2	192.168.1.11	55002	198.51.100.1	443	TLSv12	TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256	secp256r1	malware.com	F	-	-	T	-	-	-	-	-	-	-	3b5074b1b5d032e5620f69f9f700ff0e	-
+1700000180.1	S_beacon_3	192.168.1.11	55003	198.51.100.1	443	TLSv12	TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256	secp256r1	malware.com	F	-	-	T	-	-	-	-	-	-	-	3b5074b1b5d032e5620f69f9f700ff0e	-
+1700000240.0	S_beacon_4	192.168.1.11	55004	198.51.100.1	443	TLSv12	TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256	secp256r1	malware.com	F	-	-	T	-	-	-	-	-	-	-	3b5074b1b5d032e5620f69f9f700ff0e	-
+1700000300.1	S_beacon_5	192.168.1.11	55005	198.51.100.1	443	TLSv12	TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256	secp256r1	malware.com	F	-	-	T	-	-	-	-	-	-	-	3b5074b1b5d032e5620f69f9f700ff0e	-
+1700000360.0	S_beacon_6	192.168.1.11	55006	198.51.100.1	443	TLSv12	TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256	secp256r1	malware.com	F	-	-	T	-	-	-	-	-	-	-	3b5074b1b5d032e5620f69f9f700ff0e	-
+1700000420.1	S_beacon_7	192.168.1.11	55007	198.51.100.1	443	TLSv12	TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256	secp256r1	malware.com	F	-	-	T	-	-	-	-	-	-	-	3b5074b1b5d032e5620f69f9f700ff0e	-
+1700000480.0	S_beacon_8	192.168.1.11	55008	198.51.100.1	443	TLSv12	TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256	secp256r1	malware.com	F	-	-	T	-	-	-	-	-	-	-	3b5074b1b5d032e5620f69f9f700ff0e	-
+1700000540.1	S_beacon_9	192.168.1.11	55009	198.51.100.1	443	TLSv12	TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256	secp256r1	malware.com	F	-	-	T	-	-	-	-	-	-	-	3b5074b1b5d032e5620f69f9f700ff0e	-
